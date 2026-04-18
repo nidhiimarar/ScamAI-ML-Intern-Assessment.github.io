@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flappy Trials</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game-wrap">
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">SCORE</span>
+        <span class="hud-val" id="score-display">0</span>
+      </div>
+      <div class="hud-item" id="health-group">
+        <span class="hud-label">HP</span>
+        <div id="health-bar">
+          <div id="health-fill"></div>
+        </div>
+        <span class="hud-val" id="hp-display">100</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">BEST</span>
+        <span class="hud-val" id="best-display">0</span>
+      </div>
+    </div>
+
+    <div id="canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="overlay" class="visible">
+        <h1 id="overlay-title">Flappy Trials</h1>
+        <p id="overlay-sub">Navigate the gaps — choose your fate wisely.</p>
+        <button id="overlay-btn">Start Game</button>
+      </div>
+    </div>
+
+    <div id="msg-feed"></div>
+    <div id="hint">Press <kbd>Space</kbd> or click the canvas to flap</div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
