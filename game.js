@@ -15,7 +15,7 @@ const FLAP_VEL   = -4.0;
 const PIPE_W     = 30;
 const PIPE_SPEED = 2.6;
 const GAP        = 86;         // vertical gap the bird flies through (per opening)
-const BOX_W      = 80;
+const BOX_W      = 180;
 const BOX_H      = 36;
 const MAX_HP     = 100;
 const SCORE_TICK = 28;         // frames between score increments
@@ -24,17 +24,13 @@ const PIPE_INTERVAL = 190;     // frames between pipe spawns
 // ── Event Pool ────────────────────────────────────────────────────────────────
 const GOOD_EVENTS = [
   { text: 'Use AI to find sources',   hp: 20  },
-  { text: '+15 HP',   hp: 15  },
-  { text: '+10 HP',   hp: 10  },
-  { text: '+5 HP',    hp: 5   },
-  { text: '2x SCORE', hp: 0,  special: 'double'  },
+  { text: 'Use AI to explain code',   hp: 15  },
+  { text: 'Use AI to find data patterns',   hp: 10  },
 ];
 const BAD_EVENTS = [
   { text: 'Use AI to write papers',   hp: -30 },
-  { text: '-25 HP',   hp: -25 },
-  { text: '-15 HP',   hp: -15 },
-  { text: '-10 HP',   hp: -10 },
-  { text: 'FREEZE',   hp: 0,  special: 'freeze'  },
+  { text: 'Use AI as a therapist',   hp: -25 },
+  { text: 'Use AI to generate art',   hp: -50 },
 ];
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -256,30 +252,18 @@ function drawRoundRect(x, y, w, h, r) {
 }
 
 function drawBackground() {
-  // Sky gradient
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  // Sky gradient (fills from bottom up based on HP)
+  const skyHeight = H * (hp / MAX_HP);
+  const sky = ctx.createLinearGradient(0, H - skyHeight, 0, H);
   sky.addColorStop(0, '#1a2a4a');
   sky.addColorStop(1, '#2d5a7a');
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-
-  // Simple star dots
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  // deterministic positions using a simple list
-  const stars = [
-    [30,20],[80,10],[150,35],[230,8],[310,25],[400,14],[470,30],
-    [50,60],[120,50],[200,70],[280,45],[360,55],[440,40],[510,65],
-  ];
-  for (const [sx, sy] of stars) {
-    ctx.beginPath();
-    ctx.arc(sx, sy, 1, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.fillRect(0, H - skyHeight, W, skyHeight);
 
   // Ground
-  ctx.fillStyle = '#1a3a1a';
+  ctx.fillStyle = '#353535';
   ctx.fillRect(0, H - 20, W, 20);
-  ctx.fillStyle = '#2e6b2e';
+  ctx.fillStyle = '#686868';
   ctx.fillRect(0, H - 20, W, 5);
 }
 
@@ -287,25 +271,25 @@ function drawPipe(p) {
   const { x, topGapTop, topGapBot, botGapTop, botGapBot } = p;
 
   // Top wall
-  ctx.fillStyle = '#2d6a2d';
+  ctx.fillStyle = '#6b6b6b';
   ctx.fillRect(x, 0, PIPE_W, topGapTop);
   // Cap
-  ctx.fillStyle = '#4caf50';
+  ctx.fillStyle = '#aeaeae';
   ctx.fillRect(x - 5, topGapTop - 14, PIPE_W + 10, 14);
 
   // Middle wall
-  ctx.fillStyle = '#2d6a2d';
+  ctx.fillStyle = '#6b6b6b';
   ctx.fillRect(x, topGapBot, PIPE_W, botGapTop - topGapBot);
   // Mid caps
-  ctx.fillStyle = '#4caf50';
+  ctx.fillStyle = '#aeaeae';
   ctx.fillRect(x - 5, topGapBot, PIPE_W + 10, 12);
   ctx.fillRect(x - 5, botGapTop - 12, PIPE_W + 10, 12);
 
   // Bottom wall
-  ctx.fillStyle = '#2d6a2d';
+  ctx.fillStyle = '#6b6b6b';
   ctx.fillRect(x, botGapBot, PIPE_W, H - botGapBot);
   // Cap
-  ctx.fillStyle = '#4caf50';
+  ctx.fillStyle = '#aeaeae';
   ctx.fillRect(x - 5, botGapBot, PIPE_W + 10, 14);
 }
 
@@ -317,18 +301,18 @@ function drawBox(box, p) {
   const { ev } = box;
 
   // Background fill
-  ctx.fillStyle = ev.good ? 'rgba(27,58,31,0.92)' : 'rgba(58,27,27,0.92)';
+  ctx.fillStyle = 'rgba(51, 51, 51, 0.92)';
   drawRoundRect(bx, by, BOX_W, BOX_H, 7);
   ctx.fill();
 
   // Border
-  ctx.strokeStyle = ev.good ? '#43a047' : '#e53935';
+  ctx.strokeStyle = '#9e9e9e';
   ctx.lineWidth   = 1.5;
   drawRoundRect(bx, by, BOX_W, BOX_H, 7);
   ctx.stroke();
 
   // Text
-  ctx.fillStyle    = ev.good ? '#81c784' : '#ef9a9a';
+  ctx.fillStyle    = '#9e9e9e';
   ctx.font         = 'bold 12px "Courier New", monospace';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
@@ -338,45 +322,36 @@ function drawBox(box, p) {
 function drawBird() {
   const { x, y } = bird;
 
-  if (frozen) {
-    // Icy blue tint when frozen
-    ctx.fillStyle   = '#90caf9';
-    ctx.strokeStyle = '#1565c0';
-  } else {
-    ctx.fillStyle   = '#f9a825';
-    ctx.strokeStyle = '#e65100';
-  }
+  // --- Waterjet (draw behind the circle) ---
+  const jetLength = 18 + Math.random() * 10; // flickering effect
+  const jetWidth  = BIRD_R * 0.6;
 
-  // Body circle
+  // Outer jet (wide, pale blue)
+  const jetOuter = ctx.createLinearGradient(x, y + BIRD_R, x, y + BIRD_R + jetLength);
+  jetOuter.addColorStop(0,   'rgba(120, 200, 255, 0.8)');
+  jetOuter.addColorStop(1,   'rgba(120, 200, 255, 0)');
+  ctx.fillStyle = jetOuter;
+  ctx.beginPath();
+  ctx.ellipse(x, y + BIRD_R, jetWidth, jetLength, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner jet (narrow, bright white core)
+  const jetInner = ctx.createLinearGradient(x, y + BIRD_R, x, y + BIRD_R + jetLength * 0.7);
+  jetInner.addColorStop(0,   'rgba(255, 255, 255, 0.95)');
+  jetInner.addColorStop(1,   'rgba(180, 230, 255, 0)');
+  ctx.fillStyle = jetInner;
+  ctx.beginPath();
+  ctx.ellipse(x, y + BIRD_R, jetWidth * 0.35, jetLength * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- Circle (draw on top) ---
+  ctx.fillStyle   = '#f925d2';
+  ctx.strokeStyle = '#e600d7';
   ctx.beginPath();
   ctx.arc(x, y, BIRD_R, 0, Math.PI * 2);
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.stroke();
-
-  // Eye
-  ctx.fillStyle = frozen ? '#1565c0' : '#222';
-  ctx.beginPath();
-  ctx.arc(x + 5, y - 4, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Beak
-  ctx.fillStyle = frozen ? '#42a5f5' : '#ff7043';
-  ctx.beginPath();
-  ctx.moveTo(x + BIRD_R - 1, y);
-  ctx.lineTo(x + BIRD_R + 9, y - 3);
-  ctx.lineTo(x + BIRD_R - 1, y + 5);
-  ctx.closePath();
-  ctx.fill();
-
-  // Status label above bird
-  if (frozen || doubleScore) {
-    ctx.fillStyle    = frozen ? '#90caf9' : '#f9a825';
-    ctx.font         = 'bold 10px "Courier New", monospace';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(frozen ? 'FROZEN' : '2x SCORE', x, y - BIRD_R - 4);
-  }
 }
 
 function draw() {
